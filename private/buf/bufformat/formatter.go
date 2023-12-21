@@ -807,11 +807,30 @@ func (f *formatter) writeField(fieldNode *ast.FieldNode) {
 	f.writeInline(fieldNode.Equals)
 	f.Space()
 	f.writeInline(fieldNode.Tag)
+	comment := ""
 	if fieldNode.Options != nil {
+		newOptions := []*ast.OptionNode{}
+		for _, option := range fieldNode.GetOptions().GetElements() {
+			node := option.Name.Parts[0]
+			if node.Value() != "(gogoproto.moretags)" {
+				newOptions = append(newOptions, option)
+			} else {
+				comment += fmt.Sprintf("// @gotags: %s", option.GetValue().Value())
+			}
+		}
+		fieldNode.Options.Options = newOptions
 		f.Space()
 		f.writeNode(fieldNode.Options)
 	}
-	f.writeLineEnd(fieldNode.Semicolon)
+	if comment != "" {
+		f.Space()
+		f.writeNode(fieldNode.Semicolon)
+		f.Space()
+		f.writeComment(comment)
+		f.writeLineEnd(ast.NewRuneNode(' ', ast.Token(0)))
+	} else {
+		f.writeLineEnd(fieldNode.Semicolon)
+	}
 }
 
 // writeMapField writes a map field (e.g. 'map<string, string> pairs = 1;').
