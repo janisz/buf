@@ -819,8 +819,10 @@ func (f *formatter) writeField(fieldNode *ast.FieldNode) {
 			}
 		}
 		fieldNode.Options.Options = newOptions
-		f.Space()
-		f.writeNode(fieldNode.Options)
+		if len(newOptions) > 0 {
+			f.Space()
+			f.writeNode(fieldNode.Options)
+		}
 	}
 	if comment != "" {
 		f.Space()
@@ -842,11 +844,32 @@ func (f *formatter) writeMapField(mapFieldNode *ast.MapFieldNode) {
 	f.writeInline(mapFieldNode.Equals)
 	f.Space()
 	f.writeInline(mapFieldNode.Tag)
+	comment := ""
 	if mapFieldNode.Options != nil {
-		f.Space()
-		f.writeNode(mapFieldNode.Options)
+		newOptions := []*ast.OptionNode{}
+		for _, option := range mapFieldNode.GetOptions().GetElements() {
+			node := option.Name.Parts[0]
+			if node.Value() != "(gogoproto.moretags)" {
+				newOptions = append(newOptions, option)
+			} else {
+				comment += fmt.Sprintf("// @gotags: %s", option.GetValue().Value())
+			}
+		}
+		mapFieldNode.Options.Options = newOptions
+		if len(newOptions) > 0 {
+			f.Space()
+			f.writeNode(mapFieldNode.Options)
+		}
 	}
-	f.writeLineEnd(mapFieldNode.Semicolon)
+	if comment != "" {
+		f.Space()
+		f.writeNode(mapFieldNode.Semicolon)
+		f.Space()
+		f.writeComment(comment)
+		f.writeLineEnd(ast.NewRuneNode(' ', ast.Token(0)))
+	} else {
+		f.writeLineEnd(mapFieldNode.Semicolon)
+	}
 }
 
 // writeMapType writes a map type (e.g. 'map<string, string>').
